@@ -14,6 +14,33 @@ A `UserPromptSubmit` hook that injects a structured development workflow protoco
 - **Runtime:** Claude Code CLI hook system (`UserPromptSubmit` event)
 - **Platforms:** Windows (`py`), macOS (`python3`), Linux (`python3`)
 
+## AGENTS.md (Platform-Agnostic Version)
+
+This tool also ships an `AGENTS.md` file — a portable, plain-Markdown version of the same workflow protocol that works with **any AI coding agent** (GitHub Copilot, Cursor, Codex, Google Jules, and [20+ other platforms](https://agents.md)).
+
+### How to use it
+
+Copy `AGENTS.md` into the root of any repository where you want agents to follow the protocol:
+
+```bash
+cp AGENTS.md /path/to/your/project/AGENTS.md
+```
+
+That's it. No hooks, no installer, no authority binding — agents that support the [AGENTS.md standard](https://agents.md) will read it automatically.
+
+### When to use which
+
+| Approach | Best for | How it works |
+|----------|----------|--------------|
+| **Hook** (`session-start.py`) | Claude Code users | Injected into every prompt via `UserPromptSubmit` + CLAUDE.md authority binding |
+| **AGENTS.md** | Any AI agent | Placed at repo root; agents read it as project context automatically |
+
+You can use both — they contain the same rules. The hook enforces via injection; the AGENTS.md file relies on the agent reading it from the repo.
+
+### Nested AGENTS.md
+
+For monorepos, place an AGENTS.md in subdirectories to override or extend the root rules. The closest file to the edited code takes precedence.
+
 ## What's Inside
 
 7 mandatory rules wrapped in `<dev-workflow-protocol>` XML tags with compliance reporting:
