@@ -29,9 +29,11 @@ You MUST announce rule adherence explicitly as you work. Before starting any tas
 Format:
 ```
 [PROTOCOL Rule 0] Planning: This task modifies X files — <list files>.
-[PROTOCOL Rule 1] Small task — skipping team orchestration (<=3 files, no new entity).
+[PROTOCOL Rule 1] Small task — skipping team orchestration (<=2 files, no new entity).
 [PROTOCOL Rule 2] TDD RED: Writing failing test for <feature>...
 [PROTOCOL Rule 3] Test loop: Running tests after <file> change...
+[PROTOCOL Rule 4] Launching agent team — Phase 1: Research via Task(Explore)...
+[PROTOCOL Rule 4] Phase 3+4+5: Launching 3 parallel Task agents (fact-check, security, readability)...
 [PROTOCOL Rule 5] UI check: Verifying responsive layout at 375px/768px/1024px...
 ```
 
@@ -42,12 +44,12 @@ If you do NOT output these prefixes, you are violating this protocol.
 Before writing ANY code:
 1. Identify every file that will be created or modified.
 2. Map dependencies between changes (e.g., backend model change breaks frontend types, API contract change breaks consumers).
-3. If >3 files are affected, enter Plan Mode and get approval.
+3. If >2 files are affected, enter Plan Mode and get approval.
 4. If the plan changes mid-implementation, STOP and revise the plan.
 
 ## RULE 1 — Small Task Exception
 
-If a task changes 3 or fewer files AND does not add a new entity/endpoint:
+If a task changes 2 or fewer files AND does not add a new entity/endpoint:
 - Skip team orchestration (Rule 4).
 - Still follow Rules 0, 2, 3 (plan, TDD, test loop).
 - Still follow Rule 5 if modifying frontend components.
@@ -85,52 +87,94 @@ Use the first match found in the project root:
 
 ## RULE 4 — Agent Team Orchestration (Multi-File Features)
 
-For features touching >3 files, use this 7-phase pipeline:
+For features touching >2 files, you MUST delegate work to specialized agents.
+Do NOT do all the work yourself inline — use agent teams or subagents for each phase.
+This is a 7-phase pipeline.
 
-### Phase 1: Research (Read-Only)
-- Use `Explore` or `Plan` subagent type.
-- Map affected files, existing patterns, and test coverage.
-- Output: file list, dependency graph, risk assessment.
+### Detecting Available Agents
 
-### Phase 2: Writer (Implement)
-- Use `general-purpose` subagent with TDD (Rule 2).
-- Implement changes in dependency order:
+Before starting, determine which orchestration mode to use:
+
+**Agent Teams (preferred):** If the user has configured agent teams (e.g., agents defined in
+`~/.claude/agents/` such as `planner`, `architect`, `code-reviewer`, `security-reviewer`,
+`tdd-guide`, `build-error-resolver`, `e2e-runner`, `refactor-cleaner`, `doc-updater`),
+use those named agents via the `Task` tool with matching `subagent_type` values.
+
+**Subagent Fallback:** If no agent team configuration is detected, use the built-in `Task` tool
+`subagent_type` values listed below for each phase.
+
+In BOTH modes, you MUST use the `Task` tool — never do agent-designated work inline.
+
+### Phase 1: Research (Read-Only) — SEQUENTIAL
+Launch a single `Task` call:
+- **Agent Team**: `subagent_type`: `everything-claude-code:planner` or `everything-claude-code:architect`
+- **Subagent Fallback**: `subagent_type`: `Explore` (codebase mapping) or `Plan` (architecture)
+- Prompt the agent to: map affected files, existing patterns, test coverage, and dependency graph.
+- Wait for the result before proceeding. Use the output to inform Phase 2.
+
+### Phase 2: Implementation — SEQUENTIAL
+You (the parent agent) implement changes directly, following TDD (Rule 2):
+- Implement in dependency order:
   - Backend: models -> services -> controllers/handlers -> middleware
   - Frontend: types -> API client -> stores/hooks -> components -> pages
   - Fullstack: backend first, then frontend consuming the new API
 - Run tests after each file change (Rule 3).
+- For large implementations, you MAY delegate isolated subsystems to `Task` with
+  `subagent_type: general-purpose` or the appropriate language-specific agent
+  (e.g., `everything-claude-code:tdd-guide`).
 
-### Phase 3: Fact Check (parallel with 4+5)
-- Verify all planned changes were implemented.
-- Check API contracts: request/response types match between backend and frontend.
-- Check i18n completeness (if applicable).
-- Check that new API consumers handle the response format correctly.
+### Phases 3+4+5: Review Team — PARALLEL (MANDATORY)
+After Phase 2 completes, you MUST launch exactly 3 `Task` calls in a SINGLE response message.
+All three MUST appear in the same tool-use block so they execute in parallel.
+This is NON-NEGOTIABLE — sequential launch of these phases violates the protocol.
 
-### Phase 4: Quality Audit (parallel with 3+5)
-- Security: no hardcoded secrets, validated inputs, parameterized queries, no XSS vectors.
-- Performance: efficient queries, appropriate caching, no N+1 patterns.
-- Conventions: follow the project's established patterns (naming, file structure, error handling).
+**Phase 3 — Fact Check:**
+- **Agent Team**: `subagent_type`: `feature-dev:code-reviewer`
+- **Subagent Fallback**: `subagent_type`: `general-purpose`
+- Prompt: "Verify all planned changes were implemented. Check API contracts: request/response
+  types match between backend and frontend. Check i18n completeness. Check that API consumers
+  handle the response format correctly. List files: <list from Phase 1>."
 
-### Phase 5: Humanizer (parallel with 3+4)
-- Naming consistency (check existing patterns before inventing new names).
-- Code readability (small functions, clear variable names, minimal nesting).
-- Documentation: add comments only where logic is non-obvious.
+**Phase 4 — Security & Quality Audit:**
+- **Agent Team**: `subagent_type`: `everything-claude-code:security-reviewer`
+- **Subagent Fallback**: `subagent_type`: `feature-dev:code-reviewer`
+- Prompt: "Audit for security issues: hardcoded secrets, unvalidated inputs, SQL injection,
+  XSS vectors. Check performance: efficient queries, no N+1 patterns. Verify conventions:
+  project patterns for naming, file structure, error handling. Files changed: <list>."
 
-### Phase 6: Parent Review
-- Cross-check outputs from phases 3-5.
-- Fix any bugs or inconsistencies found.
-- Run full test suite one final time.
+**Phase 5 — Readability & Consistency:**
+- **Agent Team**: `subagent_type`: `everything-claude-code:code-reviewer`
+- **Subagent Fallback**: `subagent_type`: `pr-review-toolkit:code-simplifier`
+- Prompt: "Review naming consistency against existing patterns. Check code readability: small
+  functions, clear names, minimal nesting. Flag comments that are redundant or missing where
+  logic is non-obvious. Files changed: <list>."
 
-### Phase 7: Finalize
-- If project uses containers: rebuild and verify all services healthy.
+### Phase 6: Parent Review — SEQUENTIAL
+After phases 3-5 complete:
+- Read all three agent outputs.
+- Cross-check findings — fix any bugs, inconsistencies, or issues they raised.
+- Run the full test suite one final time.
+
+### Phase 7: Finalize — SEQUENTIAL
+- If the project uses containers: rebuild and verify all services are healthy.
 - Smoke-test the new feature (manual or automated).
 - Update project memory/docs if the project tracks build status or feature summaries.
 
-### Phase Dependencies
+### Phase Dependencies (STRICT)
 ```
-Phase 1 (Research) -> Phase 2 (Writer) -> Phases 3+4+5 (parallel) -> Phase 6 (Review) -> Phase 7 (Finalize)
+Phase 1 (Task: planner/architect OR Explore/Plan)
+  -> Phase 2 (implement + TDD)
+    -> Phases 3+4+5 (THREE parallel Task calls in ONE message — MANDATORY)
+      -> Phase 6 (parent review + fix + final tests)
+        -> Phase 7 (finalize)
 ```
-Never skip phases. Phases 3, 4, 5 run in parallel to save time.
+
+### ENFORCEMENT
+- You MUST use the `Task` tool for phases 1, 3, 4, and 5. Doing this work inline violates the protocol.
+- Phases 3, 4, 5 MUST be launched as parallel `Task` calls in a single response. Sequential launch is a violation.
+- Prefer Agent Team subagent_types when available; fall back to built-in subagent_types otherwise.
+- Never skip phases. If a phase finds no issues, still report that it ran clean.
+- Report each phase launch with `[PROTOCOL Rule 4] Phase N: Launching Task(subagent_type)...`
 
 ## RULE 5 — UI & Layout Standards
 
@@ -176,12 +220,16 @@ When adding or modifying API endpoints, services, or middleware:
 
 | Situation | Required Rules |
 |-----------|---------------|
-| New entity + API + frontend | Rules 0, 2, 3, 4, 5, 6 (full pipeline) |
+| New entity + API + frontend | Rules 0, 2, 3, 4 (agent team), 5, 6 (full pipeline) |
+| Multi-file feature (>2 files) | Rules 0, 2, 3, 4 (agent team), + 5/6 if applicable |
 | Bug fix (1-2 files) | Rules 0, 1, 2, 3 |
-| UI-only change | Rules 0, 1, 2, 3, 5 |
-| Backend-only change | Rules 0, 1, 2, 3, 6 |
+| UI-only change (1-2 files) | Rules 0, 1, 2, 3, 5 |
+| UI change (>2 files) | Rules 0, 2, 3, 4, 5 |
+| Backend-only change (1-2 files) | Rules 0, 1, 2, 3, 6 |
+| Backend change (>2 files) | Rules 0, 2, 3, 4, 6 |
 | New API endpoint | Rules 0, 1, 2, 3, 6 |
-| Refactor | Rules 0, 1, 3 + full test suite before AND after |
+| Refactor (>2 files) | Rules 0, 3, 4 + full test suite before AND after |
+| Refactor (1-2 files) | Rules 0, 1, 3 + full test suite before AND after |
 </dev-workflow-protocol>
 """.strip()
 

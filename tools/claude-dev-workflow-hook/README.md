@@ -82,8 +82,6 @@ py install.py
 
 ### Remote one-liner
 
-If the repo is on GitHub, install directly without cloning:
-
 **macOS / Linux:**
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ntatschner/ai-utilities/main/tools/claude-dev-workflow-hook/install-remote.sh) --global
