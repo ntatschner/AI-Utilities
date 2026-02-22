@@ -1,0 +1,37 @@
+{
+  "name": "@thecodesaiyan/claude-dev-workflow-hook",
+  "version": "1.0.0",
+  "description": "SessionStart hook that injects a structured development workflow protocol into Claude Code sessions",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "workflow",
+    "hook",
+    "tdd",
+    "agent-teams",
+    "development-workflow"
+  ],
+  "homepage": "https://github.com/ntatschner/ai-utilities/tree/main/tools/claude-dev-workflow-hook",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ntatschner/ai-utilities.git",
+    "directory": "tools/claude-dev-workflow-hook"
+  },
+  "license": "MIT",
+  "author": "ntatschner",
+  "bin": {
+    "claude-dev-workflow-hook": "bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "AGENTS.md",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

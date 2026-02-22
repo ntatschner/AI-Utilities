@@ -164,21 +164,37 @@ def merge_settings(target_dir: Path, is_global: bool):
     else:
         settings = {}
 
-    # Check if hook is already registered
-    existing_hooks = settings.get("hooks", {}).get("UserPromptSubmit", [])
+    # Check if hook is already registered under SessionStart
+    existing_hooks = settings.get("hooks", {}).get("SessionStart", [])
     for entry in existing_hooks:
         for hook in entry.get("hooks", []):
             if HOOK_FILENAME in hook.get("command", ""):
                 print(yellow(f"  SKIP: Hook already registered in {settings_path}"))
                 return True
 
-    # Add the hook
+    # Migrate: remove old UserPromptSubmit registration if present
+    old_hooks = settings.get("hooks", {}).get("UserPromptSubmit", [])
+    migrated = False
+    if old_hooks:
+        filtered = [
+            entry for entry in old_hooks
+            if not any(HOOK_FILENAME in h.get("command", "") for h in entry.get("hooks", []))
+        ]
+        if len(filtered) < len(old_hooks):
+            if filtered:
+                settings["hooks"]["UserPromptSubmit"] = filtered
+            else:
+                del settings["hooks"]["UserPromptSubmit"]
+            migrated = True
+            print(green(f"  OK: Removed old UserPromptSubmit registration"))
+
+    # Add the hook under SessionStart
     if "hooks" not in settings:
         settings["hooks"] = {}
-    if "UserPromptSubmit" not in settings["hooks"]:
-        settings["hooks"]["UserPromptSubmit"] = []
+    if "SessionStart" not in settings["hooks"]:
+        settings["hooks"]["SessionStart"] = []
 
-    settings["hooks"]["UserPromptSubmit"].append(new_hook_entry)
+    settings["hooks"]["SessionStart"].append(new_hook_entry)
 
     # Write back
     settings_path.write_text(
@@ -311,28 +327,32 @@ def uninstall(target_dir: Path):
     else:
         print(yellow(f"  SKIP: {hook_path} not found"))
 
-    # Remove from settings.json
+    # Remove from settings.json (check both SessionStart and legacy UserPromptSubmit)
     settings_path = target_dir / SETTINGS_FILENAME
     if settings_path.exists():
         try:
             settings = json.loads(settings_path.read_text(encoding="utf-8"))
-            hooks_list = settings.get("hooks", {}).get("UserPromptSubmit", [])
-            original_len = len(hooks_list)
+            removed_any = False
 
-            # Filter out entries referencing our hook
-            filtered = [
-                entry for entry in hooks_list
-                if not any(HOOK_FILENAME in h.get("command", "") for h in entry.get("hooks", []))
-            ]
+            for event_name in ("SessionStart", "UserPromptSubmit"):
+                hooks_list = settings.get("hooks", {}).get(event_name, [])
+                original_len = len(hooks_list)
 
-            if len(filtered) < original_len:
-                if filtered:
-                    settings["hooks"]["UserPromptSubmit"] = filtered
-                else:
-                    del settings["hooks"]["UserPromptSubmit"]
-                    if not settings["hooks"]:
-                        del settings["hooks"]
+                filtered = [
+                    entry for entry in hooks_list
+                    if not any(HOOK_FILENAME in h.get("command", "") for h in entry.get("hooks", []))
+                ]
 
+                if len(filtered) < original_len:
+                    if filtered:
+                        settings["hooks"][event_name] = filtered
+                    else:
+                        del settings["hooks"][event_name]
+                    removed_any = True
+
+            if removed_any:
+                if "hooks" in settings and not settings["hooks"]:
+                    del settings["hooks"]
                 settings_path.write_text(
                     json.dumps(settings, indent=2, ensure_ascii=False) + "\n",
                     encoding="utf-8"

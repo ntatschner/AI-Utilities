@@ -1,21 +1,13 @@
-#!/usr/bin/env python
-"""
-Claude Code Development Workflow Protocol — SessionStart Hook
+'use strict';
 
-Generic, project-agnostic version. Works in any repository.
-Injects orchestration rules (sequencing, testing, team coordination)
-once per session via SessionStart hookSpecificOutput.additionalContext.
+/**
+ * Development Workflow Protocol — single source of truth.
+ *
+ * This string is identical to the PROTOCOL in session-start.py.
+ * hook.js imports it and injects it via hookSpecificOutput.additionalContext.
+ */
 
-Uses Python's json.load(sys.stdin) for reliable stdin consumption,
-avoiding bash pipe/background-process race conditions.
-
-Registered as SessionStart so the protocol is injected once per session
-(on startup, resume, clear, and compact) rather than on every prompt.
-"""
-import json
-import sys
-
-PROTOCOL = r"""<dev-workflow-protocol>
+const PROTOCOL = `<dev-workflow-protocol>
 MANDATORY WORKFLOW RULES — You MUST follow these rules for ALL work in this project.
 Violations (skipping tests, skipping planning, ignoring TDD) are NOT acceptable.
 
@@ -23,16 +15,16 @@ Violations (skipping tests, skipping planning, ignoring TDD) are NOT acceptable.
 
 You MUST announce rule adherence explicitly as you work. Before starting any task:
 1. State which rules apply (use the Quick Reference table to determine the rule set).
-2. As you execute each rule, prefix your action with `[PROTOCOL Rule N]`.
+2. As you execute each rule, prefix your action with \`[PROTOCOL Rule N]\`.
 3. If you skip a rule, you MUST state why (e.g., Rule 1 small task exception).
 
 Format:
-```
+\`\`\`
 [PROTOCOL Rule 0] Planning: This task modifies X files — <list files>.
 [PROTOCOL Rule 2] TDD RED: Writing failing test for <feature>...
 [PROTOCOL Rule 4] Orchestration: Agent Teams mode / Subagent fallback — <reason>.
 [PROTOCOL Rule 4] Phase 2: Spawning 2 implementation teammates (backend, frontend)...
-```
+\`\`\`
 
 If you do NOT output these prefixes, you are violating this protocol.
 
@@ -59,7 +51,7 @@ For new features and bug fixes:
 1. RED — Write a failing test that describes the expected behavior.
 2. GREEN — Write the minimum code to make the test pass.
 3. IMPROVE — Refactor without changing behavior; re-run tests.
-4. Target 80%+ coverage. Use the `tdd-guide` agent when available.
+4. Target 80%+ coverage. Use the \`tdd-guide\` agent when available.
 
 ## RULE 3 — Test After Every Change
 
@@ -71,15 +63,15 @@ After EVERY code change (not just at the end):
 
 ### Auto-Detect Test Runner
 Use the first match found in the project root:
-- `package.json` with `test` script -> `npm test` (or `yarn test` / `pnpm test` / `bun test` based on lockfile)
-- `Makefile` with `test` target -> `make test`
-- `Cargo.toml` -> `cargo test`
-- `go.mod` -> `go test ./...`
-- `*.sln` or `*.slnx` -> `dotnet test <solution-file>`
-- `pyproject.toml` or `setup.py` -> `pytest` (or `python -m pytest`)
-- `build.gradle` or `pom.xml` -> `./gradlew test` or `mvn test`
-- `mix.exs` -> `mix test`
-- `Gemfile` -> `bundle exec rspec` or `bundle exec rake test`
+- \`package.json\` with \`test\` script -> \`npm test\` (or \`yarn test\` / \`pnpm test\` / \`bun test\` based on lockfile)
+- \`Makefile\` with \`test\` target -> \`make test\`
+- \`Cargo.toml\` -> \`cargo test\`
+- \`go.mod\` -> \`go test ./...\`
+- \`*.sln\` or \`*.slnx\` -> \`dotnet test <solution-file>\`
+- \`pyproject.toml\` or \`setup.py\` -> \`pytest\` (or \`python -m pytest\`)
+- \`build.gradle\` or \`pom.xml\` -> \`./gradlew test\` or \`mvn test\`
+- \`mix.exs\` -> \`mix test\`
+- \`Gemfile\` -> \`bundle exec rspec\` or \`bundle exec rake test\`
 - If multiple ecosystems exist (e.g., .NET backend + React frontend), run BOTH test suites.
 
 ## RULE 4 — Agent Team Orchestration (Multi-File Features)
@@ -91,11 +83,11 @@ Do NOT do all work inline — delegate to Agent Teams or subagents.
 
 Before Phase 1, determine which mode to use:
 
-1. Run: `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`
-2. If the value is `"1"` → **Agent Teams mode** (REQUIRED — you MUST use it).
-3. Otherwise → **Subagent fallback mode** (use the `Task` tool).
-4. Announce: `[PROTOCOL Rule 4] Orchestration: Agent Teams mode` or
-   `[PROTOCOL Rule 4] Orchestration: Subagent fallback — Agent Teams not enabled`
+1. Run: \`echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS\`
+2. If the value is \`"1"\` → **Agent Teams mode** (REQUIRED — you MUST use it).
+3. Otherwise → **Subagent fallback mode** (use the \`Task\` tool).
+4. Announce: \`[PROTOCOL Rule 4] Orchestration: Agent Teams mode\` or
+   \`[PROTOCOL Rule 4] Orchestration: Subagent fallback — Agent Teams not enabled\`
 
 You MUST NOT use Subagent fallback when Agent Teams are available. This is a violation.
 
@@ -104,24 +96,24 @@ You MUST NOT use Subagent fallback when Agent Teams are available. This is a vio
 **Agent Teams:** Spawn a research teammate to map affected files, existing patterns,
 test coverage, and the dependency graph. Wait for completion before Phase 2.
 
-**Subagent fallback:** Launch a `Task` call with the best role-matching `subagent_type`
-from the Task tool description. Prefer plugin/custom agents (names with `:`) over
-built-in types (`Explore`, `Plan`). State your selection rationale.
+**Subagent fallback:** Launch a \`Task\` call with the best role-matching \`subagent_type\`
+from the Task tool description. Prefer plugin/custom agents (names with \`:\`) over
+built-in types (\`Explore\`, \`Plan\`). State your selection rationale.
 
 ### Phase 2: Implementation — PARALLEL
 
 **Agent Teams (REQUIRED when available):**
 1. Analyze Phase 1 output. Partition work into **file-isolated subsystems** — no two
    teammates may edit the same file (concurrent edits cause overwrites).
-2. Create tasks on the **shared task list** with `blockedBy` dependencies. Example:
-   ```
+2. Create tasks on the **shared task list** with \`blockedBy\` dependencies. Example:
+   \`\`\`
    Task 1: Backend models (no deps) → starts immediately
    Task 2: Backend services (blockedBy: [1])
    Task 3: Frontend types (blockedBy: [2] — needs API contract)
    Task 4: Frontend components (blockedBy: [3])
    Task 5: Backend tests (blockedBy: [2])
    Task 6: Frontend tests (blockedBy: [4])
-   ```
+   \`\`\`
    When Task 2 completes, Tasks 3 AND 5 unblock in parallel — maximum concurrency.
 3. Spawn implementation teammates (one per subsystem, e.g., backend, frontend, tests).
 4. Each teammate's spawn prompt MUST include:
@@ -134,7 +126,7 @@ built-in types (`Explore`, `Plan`). State your selection rationale.
 **Subagent fallback:**
 Implement sequentially in dependency order (backend models → services → controllers,
 then frontend types → components → pages). Follow TDD (Rule 2) and test after each
-file change (Rule 3). You MAY delegate isolated subsystems via `Task` tool.
+file change (Rule 3). You MAY delegate isolated subsystems via \`Task\` tool.
 
 ### Phases 3+4+5: Review Team — PARALLEL
 
@@ -142,8 +134,8 @@ file change (Rule 3). You MAY delegate isolated subsystems via `Task` tool.
 directly and challenge each other's findings** — this cross-pollination is the key
 advantage over independent subagents.
 
-**Subagent fallback:** Launch exactly 3 `Task` calls in a SINGLE response message
-(parallel execution). Select the best role-matching `subagent_type` for each.
+**Subagent fallback:** Launch exactly 3 \`Task\` calls in a SINGLE response message
+(parallel execution). Select the best role-matching \`subagent_type\` for each.
 
 **Phase 3 — Fact Check:** Verify all planned changes were implemented. Check API
 contracts match between backend and frontend. Check i18n completeness.
@@ -165,27 +157,27 @@ inconsistencies, or issues raised. Run the full test suite one final time.
 - Update project memory/docs if the project tracks build status or feature summaries.
 
 ### Phase Dependencies
-```
+\`\`\`
 Phase 1 (research)
   -> Phase 2 (parallel implementation via teammates OR sequential)
     -> Phases 3+4+5 (parallel review team)
       -> Phase 6 (synthesis + fix + final tests)
         -> Phase 7 (finalize)
-```
+\`\`\`
 
 ### Enforcement
-- Agent Teams mode is REQUIRED when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
+- Agent Teams mode is REQUIRED when \`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1\`.
 - In subagent fallback mode: prefer plugin/custom subagent_types over built-in types.
 - Never skip phases. If a phase finds no issues, report it ran clean.
-- Report each phase: `[PROTOCOL Rule 4] Phase N: <description>...`
+- Report each phase: \`[PROTOCOL Rule 4] Phase N: <description>...\`
 
 ## RULE 5 — UI & Layout Standards
 
 When modifying frontend components:
 - **Responsive testing**: Verify at 375px (mobile), 768px (tablet), and 1024px (desktop) breakpoints.
 - **Layout stability**: Ensure no content overflow, clipped dropdowns, or scroll containers trapping positioned elements.
-- **Overflow rules**: Prefer `overflow-x-clip` over `overflow-hidden` when you need clipping without creating a scroll container. Never use `overflow-x-auto` on wrappers containing absolutely-positioned menus (CSS spec forces `overflow-y: auto` too).
-- **Flexbox constraint chain**: `h-screen` (root) -> `min-h-0` (flex items) -> `overflow-y-auto` (scrollable area).
+- **Overflow rules**: Prefer \`overflow-x-clip\` over \`overflow-hidden\` when you need clipping without creating a scroll container. Never use \`overflow-x-auto\` on wrappers containing absolutely-positioned menus (CSS spec forces \`overflow-y: auto\` too).
+- **Flexbox constraint chain**: \`h-screen\` (root) -> \`min-h-0\` (flex items) -> \`overflow-y-auto\` (scrollable area).
 - **Accessibility basics**: Semantic HTML, keyboard navigation for interactive elements, visible focus indicators, sufficient color contrast.
 - **Consistency**: Follow the project's existing design system, color tokens, and component patterns.
 - **i18n**: If the project uses internationalization, ensure all user-facing strings go through the translation system. Update ALL locale files when adding new keys.
@@ -210,13 +202,13 @@ When adding or modifying API endpoints, services, or middleware:
 ### Frontend Test Isolation
 1. Initialize i18n in test setup so translation keys resolve to readable strings.
 2. Mock API calls (MSW, manual mocks, or test interceptors) — never hit real endpoints from unit/integration tests.
-3. Test paginated API consumers: verify they handle the pagination wrapper (e.g., `.items`, `.data`, `.results`), not raw arrays.
+3. Test paginated API consumers: verify they handle the pagination wrapper (e.g., \`.items\`, \`.data\`, \`.results\`), not raw arrays.
 4. For components using data-fetching libraries (React Query, SWR, Apollo), wrap in the appropriate provider with a fresh client per test.
 
 ### Common Pitfalls
 - In-memory database providers don't support migrations, constraints, or triggers — guard migration calls with provider checks.
 - Background job frameworks often need a no-op storage set BEFORE the app starts in test mode.
-- WebApplicationFactory patterns may require a `public partial class Program { }` sentinel.
+- WebApplicationFactory patterns may require a \`public partial class Program { }\` sentinel.
 - HTTP status codes matter for client-side interceptors (e.g., 401 may trigger auto-logout — don't return 401 for validation errors).
 
 ## Quick Reference
@@ -233,28 +225,6 @@ When adding or modifying API endpoints, services, or middleware:
 | New API endpoint | Rules 0, 1, 2, 3, 6 |
 | Refactor (>2 files) | Rules 0, 3, 4 + full test suite before AND after |
 | Refactor (1-2 files) | Rules 0, 1, 3 + full test suite before AND after |
-</dev-workflow-protocol>
-""".strip()
+</dev-workflow-protocol>`.trim();
 
-
-def main():
-    # Read stdin synchronously — matches CARL's json.load(sys.stdin) pattern.
-    # Hook runner pipes JSON input; we must consume it before outputting.
-    try:
-        json.load(sys.stdin)
-    except (json.JSONDecodeError, ValueError):
-        pass  # Input doesn't matter; we just need to drain stdin
-
-    output = {
-        "hookSpecificOutput": {
-            "hookEventName": "SessionStart",
-            "additionalContext": PROTOCOL,
-        }
-    }
-
-    print(json.dumps(output))
-    sys.exit(0)
-
-
-if __name__ == "__main__":
-    main()
+module.exports = { PROTOCOL };

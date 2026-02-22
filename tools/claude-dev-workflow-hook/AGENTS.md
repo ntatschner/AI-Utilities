@@ -82,8 +82,8 @@ If multiple ecosystems exist (e.g. .NET backend + React frontend), run BOTH test
 
 ## Rule 4 -- Agent Team Orchestration (Multi-File Features)
 
-For features touching more than 2 files, use a structured 7-phase pipeline.
-Do NOT do all the work inline -- delegate review work to specialized passes.
+For features touching more than 2 files, use a 7-phase pipeline with maximum parallelism.
+Do NOT do all work inline -- delegate to agent teams or parallel workers where available.
 
 ### Phase 1: Research (Read-Only) -- SEQUENTIAL
 
@@ -92,19 +92,35 @@ Map the affected area before implementing:
 - Identify all affected files, existing patterns, test coverage, and the dependency graph.
 - Wait for the research to complete before proceeding.
 
-### Phase 2: Implementation -- SEQUENTIAL
+### Phase 2: Implementation -- PARALLEL WHERE POSSIBLE
 
-Implement changes following TDD (Rule 2):
+Maximize parallelism by partitioning work into file-isolated subsystems:
 
-- Implement in dependency order:
+1. Analyze Phase 1 output. Partition work so no two workers edit the same file
+   (concurrent edits to the same file cause overwrites).
+2. Track dependencies between tasks. Example:
+   ```
+   Task 1: Backend models (no deps) -- starts immediately
+   Task 2: Backend services (depends on 1)
+   Task 3: Frontend types (depends on 2 -- needs API contract)
+   Task 4: Frontend components (depends on 3)
+   Task 5: Backend tests (depends on 2)
+   Task 6: Frontend tests (depends on 4)
+   ```
+   When Task 2 completes, Tasks 3 AND 5 unblock in parallel -- maximum concurrency.
+3. Assign each subsystem to a separate worker (e.g., backend worker, frontend worker).
+4. Workers must know their assigned files AND which files not to touch.
+5. Follow TDD (Rule 2) and test after each file change (Rule 3).
+
+If parallel workers are not available, implement sequentially in dependency order:
   - Backend: models -> services -> controllers/handlers -> middleware
   - Frontend: types -> API client -> stores/hooks -> components -> pages
   - Fullstack: backend first, then frontend consuming the new API
-- Run tests after each file change (Rule 3).
 
 ### Phases 3 + 4 + 5: Review Team -- PARALLEL
 
-After Phase 2, perform three independent review passes in parallel:
+After Phase 2, perform three independent review passes in parallel.
+Reviewers should challenge each other's findings where possible.
 
 **Phase 3 -- Fact Check:**
 Verify all planned changes were implemented. Check API contracts -- request/response
@@ -118,7 +134,7 @@ Check for efficient queries and no N+1 patterns. Verify naming and file-structur
 Review naming against existing patterns. Check for small functions, clear names,
 minimal nesting. Flag redundant comments or missing comments where logic is non-obvious.
 
-### Phase 6: Cross-Check -- SEQUENTIAL
+### Phase 6: Synthesis -- SEQUENTIAL
 
 After phases 3-5 complete:
 
@@ -135,9 +151,9 @@ After phases 3-5 complete:
 
 ```
 Phase 1 (research)
-  -> Phase 2 (implement + TDD)
+  -> Phase 2 (parallel implementation via workers OR sequential)
     -> Phases 3 + 4 + 5 (parallel reviews)
-      -> Phase 6 (cross-check + fix + final tests)
+      -> Phase 6 (synthesis + fix + final tests)
         -> Phase 7 (finalize)
 ```
 
