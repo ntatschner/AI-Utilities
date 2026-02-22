@@ -1,14 +1,16 @@
-name: CI
+name: claude-dev-workflow-hook CI
 
 on:
   push:
     branches: [main]
     paths:
       - 'tools/claude-dev-workflow-hook/**'
+      - '.github/workflows/claude-dev-workflow-hook.yml'
   pull_request:
     branches: [main]
     paths:
       - 'tools/claude-dev-workflow-hook/**'
+      - '.github/workflows/claude-dev-workflow-hook.yml'
 
 defaults:
   run:
