@@ -87,4 +87,18 @@ describe('protocol.js — PROTOCOL string', () => {
     const ruleCount = (PROTOCOL.match(/## RULE \d/g) || []).length;
     assert.equal(ruleCount, 7, `Expected 7 rules, got ${ruleCount}`);
   });
+
+  it('detects Agent Teams via env var check, not shell echo', () => {
+    const { PROTOCOL } = require('../src/protocol.js');
+    // Should NOT tell the model to run `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`
+    assert.ok(
+      !PROTOCOL.includes('Run: `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`'),
+      'Protocol should not use shell echo for Agent Teams detection'
+    );
+    // Should reference the env var name for detection
+    assert.ok(
+      PROTOCOL.includes('CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS'),
+      'Protocol should reference the Agent Teams env var'
+    );
+  });
 });

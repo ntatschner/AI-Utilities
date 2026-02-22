@@ -1,6 +1,6 @@
 {
   "name": "@thecodesaiyan/claude-dev-workflow-hook",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SessionStart hook that injects a structured development workflow protocol into Claude Code sessions",
   "keywords": [
     "claude",

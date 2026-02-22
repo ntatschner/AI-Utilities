@@ -91,9 +91,13 @@ Do NOT do all work inline — delegate to Agent Teams or subagents.
 
 Before Phase 1, determine which mode to use:
 
-1. Run: `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`
-2. If the value is `"1"` → **Agent Teams mode** (REQUIRED — you MUST use it).
-3. Otherwise → **Subagent fallback mode** (use the `Task` tool).
+1. Check if Agent Teams are enabled: look for teammate-spawning capabilities in
+   your available tools (e.g., the ability to spawn teammates, manage a shared task
+   list across agents, or send messages between agents). Agent Teams are enabled
+   when `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is set to `"1"` in the environment
+   or in settings.json. If you have teammate capabilities → Agent Teams are available.
+2. If Agent Teams are available → **Agent Teams mode** (REQUIRED — you MUST use it).
+3. If Agent Teams are NOT available → **Subagent fallback mode** (use the `Task` tool).
 4. Announce: `[PROTOCOL Rule 4] Orchestration: Agent Teams mode` or
    `[PROTOCOL Rule 4] Orchestration: Subagent fallback — Agent Teams not enabled`
 
