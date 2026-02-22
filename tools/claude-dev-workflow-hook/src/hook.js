@@ -21,8 +21,12 @@ function emitOutput() {
       additionalContext: PROTOCOL,
     },
   };
-  process.stdout.write(JSON.stringify(output) + '\n');
-  process.exit(0);
+  // Use write callback + exitCode instead of process.exit(0) to ensure
+  // stdout fully flushes before the process terminates (fixes truncation
+  // on macOS Node 20 where the buffer doesn't drain before exit).
+  process.stdout.write(JSON.stringify(output) + '\n', () => {
+    process.exitCode = 0;
+  });
 }
 
 function main() {
